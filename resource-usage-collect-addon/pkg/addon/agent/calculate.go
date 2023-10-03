@@ -60,8 +60,7 @@ func (s *Score) calculateScore() (cpuScore int64, memScore int64, err error) {
 
 func (s *Score) normalizeScore(cpuAlloc, cpuUsage, memAlloc, memUsage int64) (cpuScore int64, memScore int64, err error) {
 	klog.Infof("cpuAlloc = %v, cpuUsage = %v, memAlloc = %v, memUsage = %v", cpuAlloc, cpuUsage, memAlloc, memUsage)
-	var availableCpu float64
-	availableCpu = float64(cpuAlloc - cpuUsage)
+	availableCpu := float64(cpuAlloc - cpuUsage)
 	if availableCpu > MAXCPUCOUNT {
 		cpuScore = int64(MAXSCORE)
 	} else if availableCpu <= MINCPUCOUNT {
@@ -70,8 +69,7 @@ func (s *Score) normalizeScore(cpuAlloc, cpuUsage, memAlloc, memUsage int64) (cp
 		cpuScore = int64(200*availableCpu/MAXCPUCOUNT - 100)
 	}
 
-	var availableMem float64
-	availableMem = float64((memAlloc - memUsage) / (1024 * 1024)) // MB
+	availableMem := float64((memAlloc - memUsage) / (1024 * 1024)) // MB
 	if availableMem > MAXMEMCOUNT {
 		memScore = int64(MAXSCORE)
 	} else if availableMem <= MINMEMCOUNT {
@@ -117,24 +115,29 @@ func (s *Score) calculatePodResourceRequest(resourceName v1.ResourceName) (int64
 	var podRequest int64
 	var podCount int
 	for _, pod := range list {
-
+		klog.Infof("pod name = %v", pod.Name)
 		for i := range pod.Spec.Containers {
 			container := &pod.Spec.Containers[i]
 			value := s.getRequestForResource(resourceName, &container.Resources.Requests, !s.useRequested)
+			klog.Infof("%v value = %v", container.Name, value)
 			podRequest += value
+			klog.Infof("%v podRequest = %v", container.Name, podRequest)
 		}
 
 		for i := range pod.Spec.InitContainers {
 			initContainer := &pod.Spec.InitContainers[i]
 			value := s.getRequestForResource(resourceName, &initContainer.Resources.Requests, !s.useRequested)
+			klog.Infof("%v value = %v", initContainer.Name, value)
 			if podRequest < value {
 				podRequest = value
 			}
+			klog.Infof("%v podRequest = %v", initContainer.Name, podRequest)
 		}
 
 		// If Overhead is being utilized, add to the total requests for the pod
 		if pod.Spec.Overhead != nil && s.enablePodOverhead {
 			if quantity, found := pod.Spec.Overhead[resourceName]; found {
+				klog.Infof("quantity.Value() = %v", quantity.Value())
 				podRequest += quantity.Value()
 			}
 		}
